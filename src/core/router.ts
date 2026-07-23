@@ -6,11 +6,15 @@
  * - 用 ModelPool 的 compatibility 决定可用 provider
  * - 自动降级到下一个可用 provider
  * - 不修改任何工具的配置（只 spawn + 传 --model）
+ * - 集成 magent 内置 SQLite 记忆层（不依赖 engram）
+ * - 集成 magent 内置 SKILL.md skills（不依赖 superpowers）
  */
 
 import { spawn } from 'node:child_process';
 import OpenAI from 'openai';
 import { ModelPool } from './model-pool.js';
+import { searchMemory } from '../memory/store.js';
+import { loadAllSkills, matchSkill, formatSkillForPrompt } from '../skills/parser.js';
 
 export interface TaskContext {
   cwd?: string;
@@ -22,6 +26,7 @@ export interface TaskContext {
 export interface RunOptions {
   cwd?: string;
   memory?: boolean;
+  skills?: boolean;
   noRouting?: boolean;
 }
 
@@ -116,8 +121,44 @@ export class Router {
 }
 
 /**
- * 运行任务（自动路由）
+ * 构建 system prompt（注入记忆 + skills）
  */
+async function buildSystemPrompt(task: string, options: RunOptions): Promise<string> {
+  let prompt = 'You are a helpful AI coding assistant.\n\n';
+
+  if (options.memory !== false) {
+    try {
+      const memories = await searchMemory(task, 5);
+      if (memories.length > 0) {
+        prompt += '## User Preferences & Project Context\n';
+        for (const m of memories) {
+          prompt += '- [' + (m.category || 'general') + '] ' + m.content + '\n';
+        }
+        prompt += '\n';
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (options.skills !== false) {
+    try {
+      const skills = await loadAllSkills();
+      const matched = matchSkill(skills, task).slice(0, 2);
+      if (matched.length > 0) {
+        prompt += '## Relevant Skills\n';
+        for (const skill of matched) {
+          prompt += formatSkillForPrompt(skill);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  return prompt;
+}
+
 export async function runTask(
   task: string,
   options: RunOptions = {},
@@ -132,12 +173,11 @@ export async function runTask(
   console.log('[magent] Router chose: ' + decision.provider + ' / ' + decision.model_name);
   console.log('[magent] Reason: ' + decision.reason);
 
-  await runWithProvider(decision.cli, decision.model_name, task, options);
+  const systemPrompt = await buildSystemPrompt(task, options);
+
+  await runWithProvider(decision.cli, decision.model_name, task, systemPrompt, options);
 }
 
-/**
- * 用指定 provider 运行
- */
 export async function runTaskWithProvider(
   task: string,
   providerName: string,
@@ -171,16 +211,15 @@ export async function runTaskWithProvider(
 
   console.log('[magent] Running with: ' + providerName + ' / ' + actualModelName);
 
-  await runWithProvider(provider.cli, actualModelName || '', task, options);
+  const systemPrompt = await buildSystemPrompt(task, options);
+  await runWithProvider(provider.cli, actualModelName || '', task, systemPrompt, options);
 }
 
-/**
- * 真正 spawn CLI
- */
 async function runWithProvider(
   cli: string,
   model: string,
   task: string,
+  systemPrompt: string,
   options: RunOptions,
 ): Promise<void> {
   const isRoot = process.getuid?.() === 0;
@@ -191,16 +230,19 @@ async function runWithProvider(
   }
 
   return new Promise((resolve, reject) => {
-    const args: string[] = buildArgs(cli, model, task, options);
+    const args: string[] = buildArgs(cli, model, task, systemPrompt, options);
 
     console.log('[magent] Command: ' + cli + ' ' + args.join(' '));
+
+    // 把 system prompt + task 都写到 stdin（codex 不支持 --append-system-prompt）
+    const fullPrompt = systemPrompt + '\n\n## Task\n' + task;
 
     const proc = spawn(cli, args, {
       cwd: options.cwd || process.cwd(),
       stdio: ['pipe', 'inherit', 'inherit'],
     });
 
-    proc.stdin.write(task + '\n');
+    proc.stdin.write(fullPrompt + '\n');
     proc.stdin.end();
 
     proc.on('close', (code) => {
@@ -218,7 +260,7 @@ async function runWithProvider(
   });
 }
 
-function buildArgs(cli: string, model: string, task: string, options: RunOptions): string[] {
+function buildArgs(cli: string, model: string, task: string, systemPrompt: string, options: RunOptions): string[] {
   const isRoot = process.getuid?.() === 0;
 
   if (cli === 'codex') {
@@ -245,26 +287,15 @@ function buildArgs(cli: string, model: string, task: string, options: RunOptions
   }
 
   if (cli === 'opencode') {
-    return [
-      'run',
-      '--model', model,
-      task,
-    ];
+    return ['run', '--model', model, task];
   }
 
   if (cli === 'pi') {
-    return [
-      '-p',
-      '--model', model,
-      task,
-    ];
+    return ['-p', '--model', model, task];
   }
 
   if (cli === 'cursor') {
-    return [
-      '--model', model,
-      task,
-    ];
+    return ['--model', model, task];
   }
 
   return ['--model', model, task];

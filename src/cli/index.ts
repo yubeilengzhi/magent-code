@@ -6,9 +6,10 @@
 import { Command } from 'commander';
 import { runTask, runTaskWithProvider } from '../core/router.js';
 import { listSessions, showSession, shareSession } from '../core/session.js';
-import { searchMemory, listMemory, addMemory } from '../memory/engram.js';
+import { searchMemory, listMemory, addMemory, getMemoryStore } from '../memory/store.js';
 import { showConfig, editConfig } from '../core/config.js';
 import { ModelPool } from '../core/model-pool.js';
+import { loadAllSkills } from '../skills/parser.js';
 
 const program = new Command();
 
@@ -64,21 +65,31 @@ sessionCmd
     await shareSession(id);
   });
 
-const memoryCmd = program.command('memory').description('Manage persistent memory (via engram)');
+const memoryCmd = program.command('memory').description('Manage persistent memory (built-in SQLite + FTS5)');
 
 memoryCmd
   .command('search <query>')
   .description('Search memories')
   .option('--top-k <n>', 'Top K results', '10')
   .action(async (query: string, options) => {
-    await searchMemory(query, parseInt(options.topK));
+    const store = await getMemoryStore();
+    const results = store.search(query, { topK: parseInt(options.topK) });
+    console.log('Found ' + results.length + ' memories:');
+    for (const r of results) {
+      console.log('  [' + r.category + '] ' + r.content);
+    }
   });
 
 memoryCmd
   .command('list')
   .description('List all memories')
   .action(async () => {
-    await listMemory();
+    const store = await getMemoryStore();
+    const records = store.listAll({ limit: 50 });
+    console.log('Total: ' + store.count() + ' memories');
+    for (const r of records) {
+      console.log('  [' + r.category + '] ' + r.content);
+    }
   });
 
 memoryCmd
@@ -86,7 +97,23 @@ memoryCmd
   .description('Add a memory')
   .option('--category <cat>', 'Category (preference, project, decision)', 'general')
   .action(async (content: string, options) => {
-    await addMemory(content, options.category);
+    const store = await getMemoryStore();
+    const record = store.save({ content, category: options.category });
+    console.log('Saved: [' + record.category + '] ' + record.content);
+  });
+
+// === Skills 管理（内置 SKILL.md）===
+const skillsCmd = program.command('skills').description('Manage skills (built-in SKILL.md parser)');
+
+skillsCmd
+  .command('list')
+  .description('List all loaded skills')
+  .action(async () => {
+    const skills = await loadAllSkills();
+    console.log('Loaded ' + skills.length + ' skills:');
+    for (const s of skills) {
+      console.log('  - ' + s.id + ': ' + s.metadata.description);
+    }
   });
 
 const modelCmd = program.command('model').description('Manage models (from pool.yml)');
