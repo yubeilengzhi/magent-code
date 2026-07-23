@@ -7,7 +7,7 @@
     "magent": "./dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-skills.js",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
     "lint": "eslint .",

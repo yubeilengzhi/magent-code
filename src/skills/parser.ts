@@ -1,25 +1,30 @@
 /**
  * SKILL.md Parser - magent 内置 skills 解析器
  *
- * 设计借鉴：superpowers-zh / ECC / superpowers 的 SKILL.md 格式
+ * 设计借鉴：superpowers / ECC / superpowers-zh 的 SKILL.md 格式
  * 完全自己实现，不调用任何外部项目
  *
- * 格式：
- * ---
- * name: skill-name
- * description: what it does
- * metadata:
- *   trigger: "when to invoke"
- *   origin: where it's from
- * ---
- * # Markdown content
+ * skills 加载顺序：
+ * 1. 内置 bundled skills（src/skills/bundled/）
+ * 2. 用户自定义 skills（~/.magent/skills/，覆盖内置）
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
+/**
+ * 用户 skills 目录（运行时）
+ */
 const SKILLS_DIR = path.join(os.homedir(), '.magent', 'skills');
+
+/**
+ * 内置 skills 目录（src/skills/bundled/）
+ */
+const BUNDLED_SKILLS_DIR = path.join(
+  new URL('.', import.meta.url).pathname,
+  'bundled'
+);
 
 export interface SkillMetadata {
   name: string;
@@ -28,29 +33,17 @@ export interface SkillMetadata {
   origin?: string;
   author?: string;
   version?: string;
+  category?: string;
   [key: string]: any;
 }
 
 export interface Skill {
-  /** skill 唯一 ID（基于目录名） */
   id: string;
-
-  /** 完整路径（~/{name}/SKILL.md） */
   path: string;
-
-  /** YAML frontmatter */
   metadata: SkillMetadata;
-
-  /** Markdown 正文 */
   content: string;
-
-  /** 提取的硬门控（HARD-GATE 块） */
   hardGates: string[];
-
-  /** 提取的检查清单 */
   checklist: string[];
-
-  /** 加载时间戳 */
   loadedAt: string;
 }
 
@@ -61,23 +54,16 @@ export async function parseSkillFile(skillPath: string): Promise<Skill | null> {
   try {
     const content = await fs.readFile(skillPath, 'utf-8');
 
-    // 1. 解析 YAML frontmatter（--- ... ---）
     const fmMatch = content.match(/^---\n([\s\S]+?)\n---\n([\s\S]*)$/);
-    if (!fmMatch) {
-      return null;  // 没有 frontmatter，跳过
-    }
+    if (!fmMatch) return null;
 
     const yamlText = fmMatch[1];
     const markdownText = fmMatch[2];
 
-    // 简单 YAML 解析（不依赖 yaml 包，避免重复）
     const metadata = parseSimpleYaml(yamlText);
 
-    if (!metadata.name) {
-      return null;  // 必须有 name
-    }
+    if (!metadata.name) return null;
 
-    // 2. 提取 HARD-GATE 块（<HARD-GATE>...</HARD-GATE>）
     const hardGates: string[] = [];
     const gateRegex = /<HARD-GATE>([\s\S]*?)<\/HARD-GATE>/g;
     let match;
@@ -85,7 +71,6 @@ export async function parseSkillFile(skillPath: string): Promise<Skill | null> {
       hardGates.push(match[1].trim());
     }
 
-    // 3. 提取 Checklist（## Checklist 下的列表）
     const checklist: string[] = [];
     const checklistMatch = markdownText.match(/##\s+Checklist\s*\n([\s\S]*?)(?=\n##\s|\n*$)/);
     if (checklistMatch) {
@@ -112,13 +97,12 @@ export async function parseSkillFile(skillPath: string): Promise<Skill | null> {
 }
 
 /**
- * 简单 YAML 解析（支持嵌套 metadata）
+ * 简单 YAML 解析（不依赖 yaml 包）
  */
 function parseSimpleYaml(text: string): SkillMetadata {
   const result: SkillMetadata = {} as SkillMetadata;
   const lines = text.split('\n');
   let currentKey: string | null = null;
-  let indentLevel = 0;
 
   for (const line of lines) {
     if (!line.trim() || line.trim().startsWith('#')) continue;
@@ -127,22 +111,17 @@ function parseSimpleYaml(text: string): SkillMetadata {
     const trimmed = line.trim();
 
     if (indent === 0 && trimmed.includes(':')) {
-      // 顶层 key: value
       const colonIdx = trimmed.indexOf(':');
       const key = trimmed.substring(0, colonIdx).trim();
       const value = trimmed.substring(colonIdx + 1).trim();
       currentKey = key;
-      indentLevel = 0;
 
       if (value) {
-        // 简单字符串值
         result[key] = stripQuotes(value);
       } else {
-        // 对象开始
         result[key] = {};
       }
     } else if (indent > 0 && currentKey) {
-      // 嵌套 key: value
       const subMatch = trimmed.match(/^(\S+):\s*(.*)$/);
       if (subMatch) {
         const subKey = subMatch[1];
@@ -173,8 +152,7 @@ function stripQuotes(s: string): string {
 /**
  * 从目录加载所有 SKILL.md
  */
-export async function loadAllSkills(skillsDir?: string): Promise<Skill[]> {
-  const dir = skillsDir || SKILLS_DIR;
+async function loadFromDir(dir: string): Promise<Skill[]> {
   const skills: Skill[] = [];
 
   try {
@@ -189,14 +167,37 @@ export async function loadAllSkills(skillsDir?: string): Promise<Skill[]> {
       }
     }
   } catch (e) {
-    // 目录不存在或读失败，返回空
+    // 目录不存在或读失败
   }
 
   return skills;
 }
 
 /**
- * 按 trigger 匹配 skill（找最相关的）
+ * 加载所有 skills（内置 + 用户自定义）
+ *
+ * 加载顺序：
+ * 1. 内置（bundled）
+ * 2. 用户（~/.magent/skills/）—— 同名 skill 会覆盖内置
+ */
+export async function loadAllSkills(): Promise<Skill[]> {
+  const bundled = await loadFromDir(BUNDLED_SKILLS_DIR);
+  const userDefined = await loadFromDir(SKILLS_DIR);
+
+  // 用户 skill 覆盖内置
+  const skillMap = new Map<string, Skill>();
+  for (const s of bundled) {
+    skillMap.set(s.id, s);
+  }
+  for (const s of userDefined) {
+    skillMap.set(s.id, s);
+  }
+
+  return Array.from(skillMap.values());
+}
+
+/**
+ * 按 trigger 匹配 skill
  */
 export function matchSkill(skills: Skill[], query: string): Skill[] {
   const queryLower = query.toLowerCase();
@@ -206,16 +207,13 @@ export function matchSkill(skills: Skill[], query: string): Skill[] {
     .map(skill => {
       let score = 0;
 
-      // 匹配 trigger
       const trigger = skill.metadata.trigger?.toLowerCase() || '';
       for (const word of queryWords) {
         if (trigger.includes(word)) score += 3;
       }
 
-      // 匹配 name
       if (skill.metadata.name.toLowerCase().includes(queryLower)) score += 5;
 
-      // 匹配 description
       const desc = skill.metadata.description.toLowerCase();
       for (const word of queryWords) {
         if (desc.includes(word)) score += 2;
@@ -232,147 +230,68 @@ export function matchSkill(skills: Skill[], query: string): Skill[] {
  * 格式化 skill 为 system prompt 片段
  */
 export function formatSkillForPrompt(skill: Skill): string {
-  let result = `\n## Skill: ${skill.metadata.name}\n`;
-  result += `Description: ${skill.metadata.description}\n`;
+  let result = '\n## Skill: ' + skill.metadata.name + '\n';
+  result += 'Description: ' + skill.metadata.description + '\n';
+
+  if (skill.metadata.category) {
+    result += 'Category: ' + skill.metadata.category + '\n';
+  }
 
   if (skill.hardGates.length > 0) {
-    result += `\n**HARD-GATES** (must enforce):\n`;
+    result += '\n**HARD-GATES** (must enforce):\n';
     for (const gate of skill.hardGates) {
-      result += `- ${gate}\n`;
+      result += '- ' + gate + '\n';
     }
   }
 
   if (skill.checklist.length > 0) {
-    result += `\nChecklist:\n`;
+    result += '\nChecklist:\n';
     for (const item of skill.checklist) {
-      result += `- [ ] ${item}\n`;
+      result += '- [ ] ' + item + '\n';
     }
   }
 
-  result += `\n${skill.content}\n`;
+  result += '\n' + skill.content + '\n';
   return result;
 }
 
 /**
- * 初始化内置 skills（创建示例）
+ * 初始化：把内置 skills 复制到用户目录
+ *
+ * 注意：用户目录的 skill 会覆盖内置
+ * 这样用户可以自定义
  */
 export async function initBuiltinSkills(): Promise<void> {
   await fs.mkdir(SKILLS_DIR, { recursive: true });
 
-  // 内置 1: brainstorming
-  const brainstorming = `---
-name: brainstorming
-description: "Use this skill before any creative work to explore ideas and design before implementing."
-metadata:
-  trigger: "brainstorm, design, plan, idea"
-  origin: superpowers
-  version: 1.0
----
+  try {
+    const entries = await fs.readdir(BUNDLED_SKILLS_DIR, { withFileTypes: true });
 
-<HARD-GATE>
-Do NOT invoke any implementation skill until you have presented a design.
-</HARD-GATE>
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
 
-# Brainstorming Ideas Into Designs
+      const srcDir = path.join(BUNDLED_SKILLS_DIR, entry.name);
+      const destDir = path.join(SKILLS_DIR, entry.name);
 
-When starting creative work:
+      // 检查用户是否已经有自定义版本
+      try {
+        await fs.access(destDir);
+        continue;  // 跳过（用户自定义优先）
+      } catch {
+        // 不存在，复制
+      }
 
-1. Explore the requirements
-2. Identify constraints
-3. Propose 2-3 design options
-4. Compare trade-offs
-5. Get user approval before implementing
+      await fs.mkdir(destDir, { recursive: true });
 
-## Anti-Pattern
-
-- Jumping straight to code
-- Asking "what do you want?" without offering options
-- Implementing the first idea that comes to mind
-
-## Checklist
-
-- [ ] Requirements understood
-- [ ] Constraints identified
-- [ ] Multiple design options presented
-- [ ] User approval received
-- [ ] Implementation plan documented
-`;
-
-  await fs.mkdir(path.join(SKILLS_DIR, 'brainstorming'), { recursive: true });
-  await fs.writeFile(
-    path.join(SKILLS_DIR, 'brainstorming', 'SKILL.md'),
-    brainstorming,
-  );
-
-  // 内置 2: test-driven-development
-  const tdd = `---
-name: tdd
-description: "Test-driven development: write failing test first, then implement."
-metadata:
-  trigger: "test, TDD, write test"
-  origin: superpowers
-  version: 1.0
----
-
-<HARD-GATE>
-Do NOT write implementation code before writing a failing test.
-</HARD-GATE>
-
-# Test-Driven Development
-
-1. Write a failing test for the desired behavior
-2. Run the test, confirm it fails for the expected reason
-3. Write minimal code to make the test pass
-4. Run the test, confirm it passes
-5. Refactor
-6. Repeat
-
-## Checklist
-
-- [ ] Test written first
-- [ ] Test confirmed failing
-- [ ] Minimal implementation
-- [ ] Test passes
-- [ ] Refactored cleanly
-`;
-
-  await fs.mkdir(path.join(SKILLS_DIR, 'tdd'), { recursive: true });
-  await fs.writeFile(
-    path.join(SKILLS_DIR, 'tdd', 'SKILL.md'),
-    tdd,
-  );
-
-  // 内置 3: code-review
-  const codeReview = `---
-name: code-review
-description: "Review code changes for correctness, style, and best practices."
-metadata:
-  trigger: "review, check code, audit"
-  origin: superpowers-zh
-  version: 1.0
----
-
-# Code Review
-
-When reviewing code:
-
-1. Check correctness (does it do what it claims?)
-2. Check edge cases (null, empty, boundary)
-3. Check style (consistent with codebase)
-4. Check tests (are changes tested?)
-5. Check documentation (are docs updated?)
-6. Suggest improvements (constructive)
-
-## Anti-Pattern
-
-- Nitpicking style without substance
-- Praising without critique
-- Skipping critical review
-`;
-
-  await fs.mkdir(path.join(SKILLS_DIR, 'code-review'), { recursive: true });
-  await fs.writeFile(
-    path.join(SKILLS_DIR, 'code-review', 'SKILL.md'),
-    codeReview,
-  );
+      // 复制所有文件
+      const files = await fs.readdir(srcDir);
+      for (const file of files) {
+        const src = path.join(srcDir, file);
+        const dest = path.join(destDir, file);
+        await fs.copyFile(src, dest);
+      }
+    }
+  } catch (e) {
+    // bundled 目录不存在或读失败
+  }
 }
