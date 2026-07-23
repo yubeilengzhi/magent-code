@@ -1,0 +1,33 @@
+{
+  "name": "magent",
+  "version": "0.1.0",
+  "description": "Cross-tool AI coding assistant with smart routing",
+  "type": "module",
+  "bin": {
+    "magent": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest",
+    "lint": "eslint .",
+    "start": "node dist/cli/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@openai/codex-sdk": "^0.144.0",
+    "commander": "^12.0.0",
+    "yaml": "^2.5.0",
+    "openai": "^4.60.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.10.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
