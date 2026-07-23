@@ -2,7 +2,7 @@
 name: test-driven-development
 description: "Test-driven development: write a failing test first, then implement to make it pass."
 metadata:
-  trigger: "test, TDD, write test first"
+  trigger: "test, TDD, write test first, unit test, integration test, 测试, 写测试, 单元测试, TDD测试, red green refactor, testing first, 测一下, 加测试"
   origin: superpowers
   category: testing
   version: 1.0

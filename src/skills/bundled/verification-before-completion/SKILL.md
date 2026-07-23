@@ -2,7 +2,7 @@
 name: verification-before-completion
 description: "Always verify your work actually works before declaring it done. Don't assume, demonstrate."
 metadata:
-  trigger: "verify, check, done, complete, finished"
+  trigger: "verify, check, done, complete, finished, 验证, 完成, 检查, confirm, prove, demonstrate, evidence, 真的能跑吗, 测试过了吗, 跑通了, 验证一下, 完工"
   origin: superpowers
   category: testing
   version: 1.0

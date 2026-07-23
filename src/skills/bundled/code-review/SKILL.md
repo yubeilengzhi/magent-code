@@ -2,7 +2,7 @@
 name: code-review
 description: "Review code changes for correctness, style, performance, and best practices."
 metadata:
-  trigger: "review, check code, audit, look at"
+  trigger: "review, check code, audit, look at, 审查, 检查代码, code review, PR review, audit, inspect, examine, 看看代码, 看一下, 审一下, 帮我看看"
   origin: superpowers-zh
   category: review
   version: 1.0

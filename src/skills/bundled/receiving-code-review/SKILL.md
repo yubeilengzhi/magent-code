@@ -2,7 +2,7 @@
 name: receiving-code-review
 description: "How to receive code review feedback well - stay curious, separate ego from code, find the underlying concern."
 metadata:
-  trigger: "review feedback, comment, suggestion, criticism"
+  trigger: "review feedback, comment, suggestion, criticism, 反馈, 评论, 建议, 接受审查, feedback, response, reply, 收到评论, 怎么回复"
   origin: superpowers
   category: review
   version: 1.0

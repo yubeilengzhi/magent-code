@@ -2,7 +2,7 @@
 name: brainstorming
 description: "Use this skill before any creative work to explore ideas and design before implementing."
 metadata:
-  trigger: "brainstorm, design, plan, idea, propose"
+  trigger: "brainstorm, brainstorm设计, 设计, 想法, 方案, 创意, 头脑风暴, 多方案, compare options, explore, propose approach"
   origin: superpowers
   category: planning
   version: 1.0

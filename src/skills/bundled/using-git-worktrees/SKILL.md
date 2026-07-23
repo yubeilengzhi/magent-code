@@ -2,7 +2,7 @@
 name: using-git-worktrees
 description: "Use git worktrees to isolate work, run multiple branches in parallel, keep main clean."
 metadata:
-  trigger: "worktree, parallel, isolate, branch, switch"
+  trigger: "worktree, parallel, isolate, branch, switch, worktree, 分支, 并行, 隔离, git worktree, multiple branches, 多分支, 平行开发"
   origin: superpowers
   category: workflow
   version: 1.0

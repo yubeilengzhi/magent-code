@@ -2,7 +2,7 @@
 name: writing-plans
 description: "Turn a brainstormed design into an executable implementation plan."
 metadata:
-  trigger: "plan, implement, build, write plan"
+  trigger: "plan, implement, build, write plan, planning, 计划, 实施, 方案, 步骤, implementation plan, step by step, roadmap, 写计划, 实施计划"
   origin: superpowers
   category: planning
   version: 1.0

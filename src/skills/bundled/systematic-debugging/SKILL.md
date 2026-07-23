@@ -2,7 +2,7 @@
 name: systematic-debugging
 description: "Debug systematically - don't guess, form hypotheses, gather evidence, isolate the cause."
 metadata:
-  trigger: "debug, fix, broken, error, bug, not working"
+  trigger: "debug, fix, broken, error, bug, not working, 调试, 修复, 出错, 报错, crash, exception, 不工作, 失败, root cause, 哪里出问题了, 找原因, 排查"
   origin: superpowers
   category: debugging
   version: 1.0
