@@ -4,7 +4,7 @@ description: "Use this skill at the start of any conversation. Learn how to disc
 metadata:
   trigger: "start, how to use, skills, 开始, 怎么用, 如何用, 用 skill"
   origin: superpowers
-  category: meta
+  category: workflow
   version: 1.0
 ---
 

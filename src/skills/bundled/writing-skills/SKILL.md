@@ -21,7 +21,7 @@ description: "When to use this skill. One sentence."
 metadata:
   trigger: "comma, separated, keywords, that, trigger, this, skill"
   origin: where this idea came from
-  category: planning|testing|debugging|review|workflow|engineering|communication|project
+  category: communication
   version: 1.0
 ---
 

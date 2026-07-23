@@ -4,7 +4,7 @@ description: "Patterns for robust error handling across languages. Fail fast, re
 metadata:
   trigger: "error handling, exception, fail, 错误处理, 异常, 容错"
   origin: ecc
-  category: testing
+  category: debugging
   version: 1.0
 ---
 

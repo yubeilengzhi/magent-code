@@ -4,7 +4,7 @@ description: "Break complex projects into shippable tasks. Identify dependencies
 metadata:
   trigger: "task breakdown, decompose, split task, 任务分解, 拆分任务, plan project"
   origin: agent-skills
-  category: project
+  category: planning
   version: 1.0
 ---
 

@@ -17,6 +17,10 @@ import { searchMemory } from '../memory/store.js';
 import { loadAllSkills, matchSkill, formatSkillForPrompt } from '../skills/parser.js';
 import { CodexProvider } from '../providers/codex.js';
 import { ClaudeCodeProvider } from '../providers/claude-code.js';
+import { OpenCodeProvider } from '../providers/opencode.js';
+import { PiProvider } from '../providers/pi.js';
+import { getSessionStore } from '../memory/session.js';
+import { getRoutingHistoryStore } from '../memory/routing-history.js';
 
 export interface TaskContext {
   cwd?: string;
@@ -28,6 +32,8 @@ export interface RunOptions {
   memory?: boolean;
   skills?: boolean;
   noRouting?: boolean;
+  provider?: string;
+  model?: string;
 }
 
 export class Router {
@@ -109,7 +115,53 @@ export async function runTask(task: string, options: RunOptions = {}): Promise<v
   console.log('[magent] Router chose: ' + decision.provider + ' / ' + decision.model_name);
   console.log('[magent] Reason: ' + decision.reason);
   const systemPrompt = await buildSystemPrompt(task, options);
-  await runWithProvider(decision.cli, decision.model_name, task, systemPrompt, options);
+  
+  // 创建 session
+  const sessionStore = await getSessionStore();
+  const session = await sessionStore.create({
+    provider: decision.provider,
+    model: decision.model_name,
+    task: task,
+  });
+  console.log('[magent] Session created: ' + session.id);
+  
+  // 记录路由历史
+  const startTime = Date.now();
+  const historyStore = await getRoutingHistoryStore();
+  
+  try {
+    await runWithProvider(decision.cli, decision.model_name, task, systemPrompt, options);
+    
+    // 更新 session（TODO: 捕获实际 output）
+    await sessionStore.update(session.id, 'Task completed');
+    
+    // 记录成功的路由历史
+    const duration = (Date.now() - startTime) / 1000;
+    await historyStore.record({
+      taskType: 'general',  // TODO: 从任务中提取类型
+      taskDescription: task,
+      provider: decision.provider,
+      model: decision.model_name,
+      success: true,
+      duration,
+      tokensUsed: 0,  // TODO: 从 provider 输出中提取
+    });
+    console.log('[magent] Routing history recorded (success)');
+  } catch (error) {
+    // 记录失败的路由历史
+    const duration = (Date.now() - startTime) / 1000;
+    await historyStore.record({
+      taskType: 'general',
+      taskDescription: task,
+      provider: decision.provider,
+      model: decision.model_name,
+      success: false,
+      duration,
+      tokensUsed: 0,
+    });
+    console.log('[magent] Routing history recorded (failure)');
+    throw error;
+  }
 }
 
 export async function runTaskWithProvider(
@@ -156,7 +208,21 @@ async function runWithProvider(
     return;
   }
 
-  // 通用 fallback（opencode, pi, cursor 等）
+  // OpenCode provider
+  if (cli === 'opencode') {
+    const provider = new OpenCodeProvider();
+    await provider.runTask(task, { model });
+    return;
+  }
+
+  // Pi provider
+  if (cli === 'pi') {
+    const provider = new PiProvider();
+    await provider.runTask(task, { model });
+    return;
+  }
+
+  // 通用 fallback（cursor 等）
   return new Promise((resolve, reject) => {
     const args: string[] = [task];
     if (model) args.unshift('--model', model);

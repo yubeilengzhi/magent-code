@@ -7,7 +7,7 @@
  * 存储位置：~/.magent/memory.db
  */
 
-import Database from 'better-sqlite3';
+import initSqlJs, { Database } from 'sql.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -29,23 +29,37 @@ export interface SearchResult extends MemoryRecord {
 }
 
 export class MemoryStore {
-  private db: Database.Database;
+  private db: Database | null = null;
+  private dbPath: string;
 
   constructor(dbPath?: string) {
-    const path = dbPath || DB_PATH;
-    this.db = new Database(path);
-
-    // 启用 WAL 模式（性能更好）
-    this.db.pragma('journal_mode = WAL');
-
-    this.init();
+    this.dbPath = dbPath || DB_PATH;
   }
 
-  /**
-   * 初始化 schema（含 FTS5 全文搜索）
-   */
-  private init(): void {
-    this.db.exec(`
+  async init(): Promise<void> {
+    if (this.db) return;
+
+    const SQL = await initSqlJs();
+    
+    // 确保目录存在
+    await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
+    
+    // 尝试加载现有数据库
+    try {
+      const buffer = await fs.readFile(this.dbPath);
+      this.db = new SQL.Database(buffer);
+    } catch {
+      // 创建新数据库
+      this.db = new SQL.Database();
+      await this.createTables();
+      await this.save();
+    }
+  }
+
+  private async createTables(): Promise<void> {
+    if (!this.db) return;
+
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS memories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
@@ -53,84 +67,137 @@ export class MemoryStore {
         scope TEXT NOT NULL DEFAULT 'user',
         metadata TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
+      )
+    `);
 
-      CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
-      CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope);
-      CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at);
+    this.db.run(`
+      CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)
+    `);
 
-      -- FTS5 全文搜索虚拟表
+    this.db.run(`
+      CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope)
+    `);
+
+    this.db.run(`
+      CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)
+    `);
+
+    // FTS5 全文搜索虚拟表
+    this.db.run(`
       CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
         content,
         category,
         content='memories',
         content_rowid='id',
         tokenize='unicode61'
-      );
+      )
+    `);
 
-      -- 触发器：维护 FTS 索引
+    // 触发器：维护 FTS 索引
+    this.db.run(`
       CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
         INSERT INTO memories_fts(rowid, content, category)
         VALUES (new.id, new.content, new.category);
-      END;
+      END
+    `);
 
+    this.db.run(`
       CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
         INSERT INTO memories_fts(memories_fts, rowid, content, category)
         VALUES('delete', old.id, old.content, old.category);
-      END;
+      END
+    `);
 
+    this.db.run(`
       CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
         INSERT INTO memories_fts(memories_fts, rowid, content, category)
         VALUES('delete', old.id, old.content, old.category);
         INSERT INTO memories_fts(rowid, content, category)
         VALUES (new.id, new.content, new.category);
-      END;
+      END
     `);
+  }
+
+  private async save(): Promise<void> {
+    if (!this.db) return;
+    const data = this.db.export();
+    const buffer = Buffer.from(data);
+    await fs.writeFile(this.dbPath, buffer);
   }
 
   /**
    * 保存记忆
    */
-  save(input: {
+  async saveMemory(input: {
     content: string;
     category?: string;
     scope?: string;
     metadata?: any;
-  }): MemoryRecord {
-    const stmt = this.db.prepare(`
-      INSERT INTO memories (content, category, scope, metadata)
-      VALUES (?, ?, ?, ?)
-    `);
+  }): Promise<MemoryRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
 
-    const result = stmt.run(
-      input.content,
-      input.category || 'general',
-      input.scope || 'user',
-      input.metadata ? JSON.stringify(input.metadata) : null,
+    this.db.run(
+      'INSERT INTO memories (content, category, scope, metadata) VALUES (?, ?, ?, ?)',
+      [
+        input.content,
+        input.category || 'general',
+        input.scope || 'user',
+        input.metadata ? JSON.stringify(input.metadata) : null,
+      ]
     );
 
-    return this.get(Number(result.lastInsertRowid))!;
+    await this.save();
+
+    // 获取最后插入的 ID
+    const result = this.db.exec('SELECT last_insert_rowid() as id');
+    const id = result[0].values[0][0] as number;
+
+    const record = await this.get(id);
+    if (!record) {
+      throw new Error('Failed to retrieve inserted memory record');
+    }
+    return record;
   }
 
   /**
    * 按 ID 获取
    */
-  get(id: number): MemoryRecord | null {
-    const stmt = this.db.prepare(`
-      SELECT id, content, category, scope, metadata, created_at as createdAt
-      FROM memories WHERE id = ?
-    `);
-    return (stmt.get(id) as MemoryRecord) || null;
+  async get(id: number): Promise<MemoryRecord | null> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.db.exec(
+      'SELECT id, content, category, scope, metadata, created_at as createdAt FROM memories WHERE id = ?',
+      [id]
+    );
+
+    if (result.length === 0 || result[0].values.length === 0) {
+      return null;
+    }
+
+    const row = result[0].values[0];
+    return {
+      id: row[0] as number,
+      content: row[1] as string,
+      category: row[2] as string,
+      scope: row[3] as string,
+      metadata: row[4] as string | null,
+      createdAt: row[5] as string,
+    };
   }
 
   /**
    * 全文搜索（FTS5）
    */
-  search(query: string, options?: {
+  async search(query: string, options?: {
     topK?: number;
     categories?: string[];
     scopes?: string[];
-  }): SearchResult[] {
+  }): Promise<SearchResult[]> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
     const topK = options?.topK || 10;
     const categories = options?.categories;
     const scopes = options?.scopes;
@@ -168,18 +235,31 @@ export class MemoryStore {
     sql += ` ORDER BY fts.rank LIMIT ?`;
     params.push(topK);
 
-    const stmt = this.db.prepare(sql);
-    return stmt.all(...params) as SearchResult[];
+    const result = this.db.exec(sql, params);
+    if (result.length === 0) return [];
+
+    return result[0].values.map((row: any[]) => ({
+      id: row[0] as number,
+      content: row[1] as string,
+      category: row[2] as string,
+      scope: row[3] as string,
+      metadata: row[4] as string | null,
+      createdAt: row[5] as string,
+      rank: row[6] as number,
+    }));
   }
 
   /**
    * 列出所有
    */
-  listAll(options?: {
+  async listAll(options?: {
     category?: string;
     scope?: string;
     limit?: number;
-  }): MemoryRecord[] {
+  }): Promise<MemoryRecord[]> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
     let sql = `SELECT id, content, category, scope, metadata, created_at as createdAt FROM memories`;
     const params: any[] = [];
     const where: string[] = [];
@@ -199,32 +279,51 @@ export class MemoryStore {
     sql += ` ORDER BY created_at DESC LIMIT ?`;
     params.push(options?.limit || 100);
 
-    const stmt = this.db.prepare(sql);
-    return stmt.all(...params) as MemoryRecord[];
+    const result = this.db.exec(sql, params);
+    if (result.length === 0) return [];
+
+    return result[0].values.map((row: any[]) => ({
+      id: row[0] as number,
+      content: row[1] as string,
+      category: row[2] as string,
+      scope: row[3] as string,
+      metadata: row[4] as string | null,
+      createdAt: row[5] as string,
+    }));
   }
 
   /**
    * 删除
    */
-  delete(id: number): boolean {
-    const stmt = this.db.prepare(`DELETE FROM memories WHERE id = ?`);
-    const result = stmt.run(id);
-    return result.changes > 0;
+  async delete(id: number): Promise<boolean> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM memories WHERE id = ?', [id]);
+    await this.save();
+    return true;
   }
 
   /**
    * 统计
    */
-  count(): number {
-    const stmt = this.db.prepare(`SELECT COUNT(*) as n FROM memories`);
-    return (stmt.get() as any).n;
+  async count(): Promise<number> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.db.exec('SELECT COUNT(*) as n FROM memories');
+    return result[0].values[0][0] as number;
   }
 
   /**
    * 关闭数据库
    */
-  close(): void {
-    this.db.close();
+  async close(): Promise<void> {
+    if (this.db) {
+      await this.save();
+      this.db.close();
+      this.db = null;
+    }
   }
 }
 
@@ -235,6 +334,7 @@ export async function getMemoryStore(): Promise<MemoryStore> {
   if (!_store) {
     await fs.mkdir(MEMORY_DIR, { recursive: true });
     _store = new MemoryStore();
+    await _store.init();
   }
   return _store;
 }
@@ -244,7 +344,8 @@ export async function getMemoryStore(): Promise<MemoryStore> {
  */
 export async function searchMemory(query: string, topK: number = 10): Promise<Array<{ content: string; category?: string }>> {
   const store = await getMemoryStore();
-  return store.search(query, { topK }).map(r => ({
+  const results = await store.search(query, { topK });
+  return results.map(r => ({
     content: r.content,
     category: r.category,
   }));
@@ -252,7 +353,7 @@ export async function searchMemory(query: string, topK: number = 10): Promise<Ar
 
 export async function addMemory(content: string, category: string = 'general'): Promise<void> {
   const store = await getMemoryStore();
-  store.save({ content, category });
+  await store.saveMemory({ content, category });
 }
 
 export async function listMemory(): Promise<MemoryRecord[]> {

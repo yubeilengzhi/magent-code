@@ -41,28 +41,164 @@ program
       await runTask(task, runOptions);
     }
   });
-
+// === Session 管理 ===
 const sessionCmd = program.command('session').description('Manage sessions');
 
 sessionCmd
   .command('list')
   .description('List all sessions')
-  .action(async () => {
-    await listSessions();
+  .option('-p, --provider <provider>', 'Filter by provider')
+  .option('-n, --limit <n>', 'Max results', '20')
+  .action(async (options) => {
+    const { getSessionStore } = await import('../memory/session.js');
+    const store = await getSessionStore();
+    const sessions = await store.listAll({
+      provider: options.provider,
+      limit: parseInt(options.limit),
+    });
+    
+    if (sessions.length === 0) {
+      console.log('No sessions found');
+      return;
+    }
+    
+    console.log(`Found ${sessions.length} session(s):\n`);
+    for (const s of sessions) {
+      console.log(`ID: ${s.id}`);
+      console.log(`  Provider: ${s.provider}`);
+      console.log(`  Model: ${s.model}`);
+      console.log(`  Task: ${s.task.substring(0, 80)}${s.task.length > 80 ? '...' : ''}`);
+      console.log(`  Created: ${s.createdAt}`);
+      console.log(`  Updated: ${s.updatedAt}`);
+      if (s.parentId) {
+        console.log(`  Forked from: ${s.parentId}`);
+      }
+      console.log();
+    }
   });
 
 sessionCmd
   .command('show <id>')
   .description('Show session details')
-  .action(async (id: string) => {
-    await showSession(id);
+  .action(async (id) => {
+    const { getSessionStore } = await import('../memory/session.js');
+    const store = await getSessionStore();
+    const session = await store.get(id);
+    
+    if (!session) {
+      console.error('Session not found: ' + id);
+      process.exit(1);
+    }
+    
+    console.log('Session Details:');
+    console.log('ID:', session.id);
+    console.log('Provider:', session.provider);
+    console.log('Model:', session.model);
+    console.log('Task:', session.task);
+    console.log('Output:', session.output || '(empty)');
+    console.log('Created:', session.createdAt);
+    console.log('Updated:', session.updatedAt);
+    if (session.parentId) {
+      console.log('Forked from:', session.parentId);
+    }
   });
 
 sessionCmd
-  .command('share <id>')
-  .description('Generate shareable session URL')
-  .action(async (id: string) => {
-    await shareSession(id);
+  .command('delete <id>')
+  .description('Delete a session')
+  .action(async (id) => {
+    const { getSessionStore } = await import('../memory/session.js');
+    const store = await getSessionStore();
+    const deleted = await store.delete(id);
+    
+    if (deleted) {
+      console.log('Session deleted: ' + id);
+    } else {
+      console.error('Session not found: ' + id);
+      process.exit(1);
+    }
+  });
+
+// === Routing History 管理 ===
+const routingCmd = program.command('routing').description('Manage routing history and stats');
+
+routingCmd
+  .command('stats')
+  .description('Show routing statistics')
+  .option('-t, --task-type <type>', 'Filter by task type')
+  .option('-p, --provider <provider>', 'Filter by provider')
+  .action(async (options) => {
+    const { getRoutingHistoryStore } = await import('../memory/routing-history.js');
+    const store = await getRoutingHistoryStore();
+    const stats = await store.getStats(options.taskType, options.provider);
+    
+    if (stats.length === 0) {
+      console.log('No routing history found');
+      return;
+    }
+    
+    console.log(`Found ${stats.length} routing stat(s):\n`);
+    for (const s of stats) {
+      console.log(`Provider: ${s.provider}`);
+      console.log(`  Task Type: ${s.taskType}`);
+      console.log(`  Total Runs: ${s.totalRuns}`);
+      console.log(`  Success Rate: ${(s.successRate * 100).toFixed(1)}%`);
+      console.log(`  Avg Duration: ${s.avgDuration.toFixed(2)}s`);
+      console.log(`  Avg Tokens: ${s.avgTokens.toFixed(0)}`);
+      console.log(`  Score: ${s.score.toFixed(1)}`);
+      console.log();
+    }
+  });
+
+routingCmd
+  .command('list')
+  .description('List routing history')
+  .option('-t, --task-type <type>', 'Filter by task type')
+  .option('-p, --provider <provider>', 'Filter by provider')
+  .option('-n, --limit <n>', 'Max results', '20')
+  .action(async (options) => {
+    const { getRoutingHistoryStore } = await import('../memory/routing-history.js');
+    const store = await getRoutingHistoryStore();
+    const history = await store.listAll({
+      taskType: options.taskType,
+      provider: options.provider,
+      limit: parseInt(options.limit),
+    });
+    
+    if (history.length === 0) {
+      console.log('No routing history found');
+      return;
+    }
+    
+    console.log(`Found ${history.length} routing record(s):\n`);
+    for (const h of history) {
+      console.log(`ID: ${h.id}`);
+      console.log(`  Timestamp: ${h.timestamp}`);
+      console.log(`  Task Type: ${h.taskType}`);
+      console.log(`  Provider: ${h.provider} / ${h.model}`);
+      console.log(`  Success: ${h.success ? '✅' : '❌'}`);
+      console.log(`  Duration: ${h.duration.toFixed(2)}s`);
+      console.log(`  Tokens: ${h.tokensUsed}`);
+      console.log(`  Task: ${h.taskDescription.substring(0, 80)}${h.taskDescription.length > 80 ? '...' : ''}`);
+      console.log();
+    }
+  });
+
+routingCmd
+  .command('recommend <task-type>')
+  .description('Get recommended provider for a task type')
+  .action(async (taskType) => {
+    const { getRoutingHistoryStore } = await import('../memory/routing-history.js');
+    const store = await getRoutingHistoryStore();
+    const recommended = await store.getRecommendedProvider(taskType);
+    
+    if (!recommended) {
+      console.log(`No routing history found for task type: ${taskType}`);
+      return;
+    }
+    
+    console.log(`Recommended provider for "${taskType}": ${recommended.provider}`);
+    console.log(`Score: ${recommended.score.toFixed(1)}`);
   });
 
 const memoryCmd = program.command('memory').description('Manage persistent memory (built-in SQLite + FTS5)');
@@ -73,7 +209,7 @@ memoryCmd
   .option('--top-k <n>', 'Top K results', '10')
   .action(async (query: string, options) => {
     const store = await getMemoryStore();
-    const results = store.search(query, { topK: parseInt(options.topK) });
+    const results = await store.search(query, { topK: parseInt(options.topK) });
     console.log('Found ' + results.length + ' memories:');
     for (const r of results) {
       console.log('  [' + r.category + '] ' + r.content);
@@ -85,8 +221,9 @@ memoryCmd
   .description('List all memories')
   .action(async () => {
     const store = await getMemoryStore();
-    const records = store.listAll({ limit: 50 });
-    console.log('Total: ' + store.count() + ' memories');
+    const records = await store.listAll({ limit: 50 });
+    const total = await store.count();
+    console.log('Total: ' + total + ' memories');
     for (const r of records) {
       console.log('  [' + r.category + '] ' + r.content);
     }
@@ -98,7 +235,7 @@ memoryCmd
   .option('--category <cat>', 'Category (preference, project, decision)', 'general')
   .action(async (content: string, options) => {
     const store = await getMemoryStore();
-    const record = store.save({ content, category: options.category });
+    const record = await store.saveMemory({ content, category: options.category });
     console.log('Saved: [' + record.category + '] ' + record.content);
   });
 
@@ -219,6 +356,17 @@ program
   .action(async () => {
     const { initProject } = await import('../core/init.js');
     await initProject();
+  });
+
+// === Web UI 服务器 ===
+program
+  .command('serve')
+  .description('启动 Web UI 服务器')
+  .option('-p, --port <port>', '服务器端口', '3000')
+  .action(async (options) => {
+    process.env.MAGENT_PORT = options.port;
+    const { startServer } = await import('../web/server.js');
+    startServer();
   });
 
 program.parse();

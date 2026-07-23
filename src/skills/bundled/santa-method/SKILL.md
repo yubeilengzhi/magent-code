@@ -4,7 +4,7 @@ description: "Multi-agent adversarial verification. Generator + Evaluator conver
 metadata:
   trigger: "santa, adversarial, multi-agent verify, 多 agent 验证, 对抗"
   origin: ecc
-  category: testing
+  category: engineering
   version: 1.0
 ---
 

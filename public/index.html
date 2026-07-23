@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>magent - 跨工具 AI 编程助手</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef4ff',
+              100: '#dae6ff',
+              200: '#bdd2ff',
+              300: '#90b3ff',
+              400: '#5e8aff',
+              500: '#3a64ff',
+              600: '#2543f5',
+              700: '#1d33d8',
+              800: '#1c2caf',
+              900: '#1c2a8a',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SF Mono', 'Menlo', 'Consolas', 'monospace'],
+          },
+          animation: {
+            'gradient': 'gradient 8s linear infinite',
+            'fade-in': 'fadeIn 0.2s ease-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'pulse-dot': 'pulseDot 1.5s ease-in-out infinite',
+          },
+          keyframes: {
+            gradient: {
+              '0%, 100%': { 'background-position': '0% 50%' },
+              '50%': { 'background-position': '100% 50%' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            pulseDot: {
+              '0%, 100%': { opacity: '0.3' },
+              '50%': { opacity: '1' },
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      background-size: 200% 200%;
+      animation: gradient 8s linear infinite;
+    }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; }
+    .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    .typing-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+      animation: pulseDot 1.5s ease-in-out infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    .message-content p { margin: 0.5em 0; line-height: 1.6; }
+    .message-content p:first-child { margin-top: 0; }
+    .message-content p:last-child { margin-bottom: 0; }
+    .message-content pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1em;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85em;
+      margin: 0.75em 0;
+    }
+    .message-content code:not(pre code) {
+      background: rgba(99, 102, 241, 0.1);
+      color: #4f46e5;
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .dark .message-content code:not(pre code) {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+    }
+    .message-content ul, .message-content ol {
+      padding-left: 1.5em;
+      margin: 0.5em 0;
+    }
+    .message-content li { margin: 0.25em 0; }
+    .message-content h1, .message-content h2, .message-content h3 {
+      font-weight: 600;
+      margin: 0.75em 0 0.4em;
+    }
+    .message-content h1 { font-size: 1.3em; }
+    .message-content h2 { font-size: 1.15em; }
+    .message-content h3 { font-size: 1em; }
+    .message-content a { color: #3b82f6; text-decoration: underline; }
+    .message-content blockquote {
+      border-left: 3px solid #94a3b8;
+      padding-left: 1em;
+      color: #64748b;
+      margin: 0.75em 0;
+    }
+    .nav-item {
+      position: relative;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 60%;
+      background: linear-gradient(180deg, #667eea, #764ba2);
+      border-radius: 0 3px 3px 0;
+    }
+    .glass {
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: all 0.15s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .empty-state {
+      background: radial-gradient(circle at center, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 h-screen overflow-hidden">
+  <div id="app" class="flex h-full">
+    <!-- JS 渲染 -->
+  </div>
+
+  <script src="skills.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
