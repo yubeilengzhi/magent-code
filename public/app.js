@@ -70,6 +70,10 @@ function el(tag, props = {}, children = []) {
     if (k === 'html') node.innerHTML = props[k];
     else if (k.startsWith('on') && typeof props[k] === 'function') {
       node.addEventListener(k.slice(2).toLowerCase(), props[k]);
+      // DEBUG
+      if (k === 'onclick' && tag === 'button') {
+        console.log('[el] bound', k, 'on', tag, 'id=', node.id);
+      }
     } else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
     else node[k] = props[k];
   });
@@ -150,16 +154,21 @@ function IconButton({ icon, onClick, title, className = '' }) {
 // SearchInput
 function SearchInput({ placeholder, value, onInput, className = '' }) {
   const wrap = el('div', { class: `relative ${className}` });
-  wrap.innerHTML = `
-    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none">${Icons.search}</span>
-    <input type="text" placeholder="${placeholder}" value="${value || ''}"
-      class="w-full pl-8 pr-3 py-1.5 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-input placeholder:text-text-tertiary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors" />
-  `;
+  // 直接创建 input（不用 innerHTML + setTimeout）
+  const input = el('input', {
+    type: 'text',
+    placeholder,
+    value: value || '',
+    class: 'w-full pl-8 pr-3 py-1.5 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-input placeholder:text-text-tertiary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors',
+  });
   if (onInput) {
-    setTimeout(() => {
-      wrap.querySelector('input').addEventListener('input', (e) => onInput(e.target.value));
-    }, 0);
+    input.addEventListener('input', e => onInput(e.target.value));
   }
+  wrap.appendChild(el('span', {
+    class: 'absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none w-4 h-4',
+    html: Icons.search,
+  }));
+  wrap.appendChild(input);
   return wrap;
 }
 
@@ -301,69 +310,86 @@ function Header() {
   };
   const t = titles[State.activeView] || titles.chat;
 
-  return el('header', { class: 'h-12 px-4 flex items-center justify-between border-b border-border dark:border-d-border bg-white/80 dark:bg-d-bg-primary/80 backdrop-blur-md' }, [
-    // 左侧
+  // 右侧的视图特定控件（不用三元嵌入 children array，避免 hoisting 边界问题）
+  const rightChildren = [];
+  if (State.activeView === 'chat') {
+    rightChildren.push(el('div', { class: 'flex items-center gap-2 mr-2' }, [
+      ModelSelector(),
+      ProviderSelector(),
+    ]));
+  } else if (State.activeView === 'memories') {
+    rightChildren.push(el('div', { class: 'mr-1' }, [
+      el('button', {
+        class: 'h-8 px-3 text-sm font-medium rounded-btn text-white bg-accent hover:bg-accent-hover transition-colors inline-flex items-center gap-1.5',
+        onclick: () => { State.showAddMemory = true; renderApp(); },
+      }, [
+        el('span', { class: 'w-3.5 h-3.5', html: Icons.plus }),
+        '添加',
+      ])
+    ]));
+  }
+  rightChildren.push(IconButton({
+    icon: Icons.refresh,
+    title: '刷新',
+    onClick: () => { loadAll(); renderApp(); showToast('已刷新', 'success'); }
+  }));
+
+  return el('header', {
+    class: 'h-12 px-4 flex items-center justify-between border-b border-border dark:border-d-border bg-white/80 dark:bg-d-bg-primary/80 backdrop-blur-md'
+  }, [
     el('div', { class: 'flex items-center gap-3' }, [
       el('div', {}, [
         el('div', { class: 'text-sm font-semibold text-text-primary dark:text-d-text-primary leading-tight' }, [t.title]),
         el('div', { class: 'text-[11px] text-text-tertiary leading-tight' }, [t.sub]),
       ]),
     ]),
-
-    // 右侧
-    el('div', { class: 'flex items-center gap-1' }, [
-      // 视图特定控件
-      State.activeView === 'chat' ? el('div', { class: 'flex items-center gap-2 mr-2' }, [
-        ModelSelector(),
-        ProviderSelector(),
-      ]) : null,
-
-      State.activeView === 'memories' ? el('div', { class: 'mr-1' }, [
-        el('button', {
-          class: 'h-8 px-3 text-sm font-medium rounded-btn text-white bg-accent hover:bg-accent-hover transition-colors inline-flex items-center gap-1.5',
-          onclick: () => { State.showAddMemory = true; renderApp(); },
-        }, [
-          el('span', { class: 'w-3.5 h-3.5', html: Icons.plus }),
-          '添加',
-        ])
-      ]) : null,
-
-      IconButton({ icon: Icons.refresh, title: '刷新', onClick: () => { loadAll(); renderApp(); showToast('已刷新', 'success'); } }),
-    ]),
+    el('div', { class: 'flex items-center gap-1' }, rightChildren),
   ]);
 }
 
 function ModelSelector() {
   const wrap = el('div', { class: 'relative' });
-  wrap.innerHTML = `
-    <button id="model-selector" class="h-8 px-2.5 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-btn inline-flex items-center gap-1.5 hover:border-text-tertiary transition-colors">
-      <span class="w-3.5 h-3.5 text-text-secondary">${Icons.layers}</span>
-      <span>${State.selectedModel}</span>
-      <svg class="w-3 h-3 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-  `;
-  setTimeout(() => {
-    $('#model-selector').addEventListener('click', () => {
-      State.activeView = 'models';
-      renderApp();
-    });
-  }, 0);
+  // 直接创建 button（不用 innerHTML + setTimeout）
+  const btn = el('button', {
+    id: 'model-selector',
+    class: 'h-8 px-2.5 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-btn inline-flex items-center gap-1.5 hover:border-text-tertiary transition-colors',
+  }, [
+    el('span', { class: 'w-3.5 h-3.5 text-text-secondary', html: Icons.layers }),
+    el('span', {}, [State.selectedModel]),
+    el('span', { class: 'w-3 h-3 text-text-tertiary', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' }),
+  ]);
+  // 同时用 addEventListener 绑定（防止 onclick 没生效）
+  btn.addEventListener('click', () => {
+    console.log('[ModelSelector] clicked!');
+    State.activeView = 'models';
+    renderApp();
+  });
+  wrap.appendChild(btn);
   return wrap;
 }
 
 function ProviderSelector() {
   const wrap = el('div', { class: 'relative' });
-  wrap.innerHTML = `
-    <select id="provider-selector" class="h-8 pl-2.5 pr-7 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-btn appearance-none cursor-pointer focus:outline-none focus:border-accent">
-      ${State.providers.map(p => `<option value="${p.name}" ${p.name === State.selectedProvider ? 'selected' : ''}>${p.name}</option>`).join('')}
-    </select>
-    <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-tertiary pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-  `;
-  setTimeout(() => {
-    $('#provider-selector').addEventListener('change', (e) => {
-      State.selectedProvider = e.target.value;
-    });
-  }, 0);
+  // 直接创建 select（不用 innerHTML + setTimeout）
+  const sel = el('select', {
+    id: 'provider-selector',
+    class: 'h-8 pl-2.5 pr-7 text-sm bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-btn appearance-none cursor-pointer focus:outline-none focus:border-accent',
+  });
+  State.providers.forEach(p => {
+    const opt = el('option', { value: p.name }, [p.name]);
+    if (p.name === State.selectedProvider) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', e => {
+    State.selectedProvider = e.target.value;
+  });
+  wrap.appendChild(sel);
+  // 下拉箭头
+  const arrow = el('span', {
+    class: 'absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-tertiary pointer-events-none',
+    html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
+  });
+  wrap.appendChild(arrow);
   return wrap;
 }
 
@@ -413,12 +439,20 @@ function ChatView() {
   // 有消息时
   const wrap = el('div', { class: 'flex-1 flex flex-col' });
   const messages = el('div', { class: 'flex-1 overflow-y-auto scrollbar-thin' });
-  messages.innerHTML = `<div class="max-w-3xl mx-auto px-6 py-8">${
-    State.messages.map(m => MessageBubble(m)).join('')
-  }</div>`;
+  // 用 DOMParser 解析 HTML 字符串（避免 XSS 风险）
+  const inner = el('div', { class: 'max-w-3xl mx-auto px-6 py-8' });
+  State.messages.forEach(m => {
+    const bubble = el('div', { html: MessageBubble(m) });
+    // MessageBubble 返回的 HTML 字符串已经 escapeHtml 过，可以安全使用
+    while (bubble.firstChild) inner.appendChild(bubble.firstChild);
+  });
+  messages.appendChild(inner);
   wrap.appendChild(messages);
   wrap.appendChild(ChatInput());
-  setTimeout(() => { messages.scrollTop = messages.scrollHeight; }, 0);
+  // 滚动到底部（在元素插入 DOM 后同步执行）
+  requestAnimationFrame(() => {
+    if (messages) messages.scrollTop = messages.scrollHeight;
+  });
   return wrap;
 }
 
@@ -444,41 +478,60 @@ function MessageBubble(msg) {
 
 function ChatInput() {
   const wrap = el('div', { class: 'border-t border-border dark:border-d-border bg-white dark:bg-d-bg-primary' });
-  wrap.innerHTML = `
-    <div class="max-w-3xl mx-auto px-6 py-4">
-      <div class="relative flex items-end gap-2 px-3 py-2.5 bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-input focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20 transition-colors">
-        <textarea id="chat-input" rows="1" placeholder="输入消息..."
-          class="flex-1 resize-none bg-transparent text-sm text-text-primary dark:text-d-text-primary placeholder:text-text-tertiary focus:outline-none max-h-32"></textarea>
-        <button id="chat-send" class="flex-shrink-0 w-7 h-7 rounded-btn bg-accent hover:bg-accent-hover text-white inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <span class="w-3.5 h-3.5">${State.isLoading ? '<div class="flex gap-0.5"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>' : Icons.arrowRight}</span>
-        </button>
-      </div>
-      <div class="mt-2 text-[11px] text-text-tertiary flex items-center justify-center gap-2">
-        <span>${State.selectedProvider}</span>
-        <span>·</span>
-        <span>${State.selectedModel}</span>
-        <span>·</span>
-        <span>AI 生成内容仅供参考</span>
-      </div>
-    </div>
-  `;
-  setTimeout(() => {
-    const sendBtn = $('#chat-send');
-    const input = $('#chat-input');
-    if (sendBtn) sendBtn.addEventListener('click', handleSend);
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          handleSend();
-        }
-      });
-      input.addEventListener('input', () => {
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 128) + 'px';
-      });
+
+  // 直接用 el() 构建，不依赖 innerHTML + setTimeout
+  const inner = el('div', { class: 'max-w-3xl mx-auto px-6 py-4' });
+  const inputRow = el('div', {
+    class: 'relative flex items-end gap-2 px-3 py-2.5 bg-bg-secondary dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-input focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20 transition-colors',
+  });
+
+  const textarea = el('textarea', {
+    id: 'chat-input',
+    rows: 1,
+    placeholder: '输入消息...',
+    class: 'flex-1 resize-none bg-transparent text-sm text-text-primary dark:text-d-text-primary placeholder:text-text-tertiary focus:outline-none max-h-32',
+  });
+
+  const sendBtn = el('button', {
+    id: 'chat-send',
+    class: 'flex-shrink-0 w-7 h-7 rounded-btn bg-accent hover:bg-accent-hover text-white inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
+    onclick: handleSend,
+  }, [
+    el('span', {
+      class: 'w-3.5 h-3.5',
+      html: State.isLoading
+        ? '<div class="flex gap-0.5"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>'
+        : Icons.arrowRight,
+    }),
+  ]);
+
+  // 绑定事件（直接绑定，不用 setTimeout）
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
-  }, 0);
+  });
+  textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
+  });
+
+  inputRow.appendChild(textarea);
+  inputRow.appendChild(sendBtn);
+  inner.appendChild(inputRow);
+
+  // 底部信息
+  const info = el('div', { class: 'mt-2 text-[11px] text-text-tertiary flex items-center justify-center gap-2' }, [
+    el('span', {}, [State.selectedProvider]),
+    el('span', {}, ['·']),
+    el('span', {}, [State.selectedModel]),
+    el('span', {}, ['·']),
+    el('span', {}, ['AI 生成内容仅供参考']),
+  ]);
+  inner.appendChild(info);
+
+  wrap.appendChild(inner);
   return wrap;
 }
 
@@ -495,23 +548,24 @@ function SessionsView() {
   }
 
   const list = el('div', { class: 'max-w-5xl mx-auto px-6 py-8' });
-  list.innerHTML = `
-    <div class="mb-4 flex items-center justify-between">
-      <div class="text-sm text-text-secondary">${State.sessions.length} 个会话</div>
-    </div>
-    <div class="space-y-2">
-      ${State.sessions.map(s => `
-        <div class="px-4 py-3 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-text-tertiary transition-colors">
-          <div class="flex items-center gap-2 mb-1.5">
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-bg-secondary dark:bg-d-bg-secondary text-text-secondary">${escapeHtml(s.provider)}</span>
-            <span class="text-xs text-text-secondary">${escapeHtml(s.model)}</span>
-            <span class="text-xs text-text-tertiary ml-auto">${formatDate(s.createdAt)}</span>
-          </div>
-          <div class="text-sm text-text-primary dark:text-d-text-primary line-clamp-2">${escapeHtml(s.task || '')}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  // 用 el() 直接构建（不用 innerHTML + setTimeout）
+  list.appendChild(el('div', { class: 'mb-4 flex items-center justify-between' }, [
+    el('div', { class: 'text-sm text-text-secondary' }, [State.sessions.length + ' 个会话']),
+  ]));
+  const space = el('div', { class: 'space-y-2' });
+  State.sessions.forEach(s => {
+    const card = el('div', {
+      class: 'px-4 py-3 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-text-tertiary transition-colors',
+    });
+    const header = el('div', { class: 'flex items-center gap-2 mb-1.5' });
+    header.appendChild(el('span', { class: 'px-1.5 py-0.5 rounded text-[10px] font-medium bg-bg-secondary dark:bg-d-bg-secondary text-text-secondary' }, [s.provider]));
+    header.appendChild(el('span', { class: 'text-xs text-text-secondary' }, [s.model]));
+    header.appendChild(el('span', { class: 'text-xs text-text-tertiary ml-auto' }, [formatDate(s.createdAt)]));
+    card.appendChild(header);
+    card.appendChild(el('div', { class: 'text-sm text-text-primary dark:text-d-text-primary line-clamp-2' }, [s.task || '']));
+    space.appendChild(card);
+  });
+  list.appendChild(space);
   return list;
 }
 
@@ -569,43 +623,52 @@ function MemoriesView() {
 function AddMemoryModal() {
   const overlay = el('div', { class: 'fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 animate-fade' });
   const modal = el('div', { class: 'w-full max-w-md bg-white dark:bg-d-bg-secondary border border-border dark:border-d-border rounded-container shadow-popover' });
-  modal.innerHTML = `
-    <div class="px-5 py-4 border-b border-border dark:border-d-border flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-text-primary dark:text-d-text-primary">添加记忆</h3>
-      <button id="close-modal" class="w-6 h-6 inline-flex items-center justify-center rounded text-text-secondary hover:text-text-primary hover:bg-active transition-colors">
-        <span class="w-3.5 h-3.5">${Icons.x}</span>
-      </button>
-    </div>
-    <div class="p-5 space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-text-secondary mb-1.5">分类</label>
-        <select id="memory-cat" class="w-full h-9 px-3 text-sm bg-bg-secondary dark:bg-d-bg-tertiary border border-border dark:border-d-border rounded-input focus:outline-none focus:border-accent">
-          <option value="general">通用</option>
-          <option value="preference">偏好</option>
-          <option value="project">项目</option>
-          <option value="decision">决策</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-text-secondary mb-1.5">内容</label>
-        <textarea id="memory-content" rows="4" placeholder="记忆内容..."
-          class="w-full px-3 py-2 text-sm bg-bg-secondary dark:bg-d-bg-tertiary border border-border dark:border-d-border rounded-input placeholder:text-text-tertiary focus:outline-none focus:border-accent resize-none"></textarea>
-      </div>
-    </div>
-    <div class="px-5 py-3 border-t border-border dark:border-d-border flex items-center justify-end gap-2">
-      <button id="cancel-memory" class="h-8 px-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-active rounded-btn transition-colors">取消</button>
-      <button id="save-memory" class="h-8 px-4 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-btn transition-colors">保存</button>
-    </div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
 
-  setTimeout(() => {
-    modal.querySelector('#close-modal').addEventListener('click', () => { overlay.remove(); State.showAddMemory = false; });
-    modal.querySelector('#cancel-memory').addEventListener('click', () => { overlay.remove(); State.showAddMemory = false; });
-    modal.querySelector('#save-memory').addEventListener('click', async () => {
-      const content = modal.querySelector('#memory-content').value.trim();
-      const category = modal.querySelector('#memory-cat').value;
+  // Header
+  const header = el('div', { class: 'px-5 py-4 border-b border-border dark:border-d-border flex items-center justify-between' });
+  header.appendChild(el('h3', { class: 'text-sm font-semibold text-text-primary dark:text-d-text-primary' }, ['添加记忆']));
+  const closeBtn = el('button', {
+    class: 'w-6 h-6 inline-flex items-center justify-center rounded text-text-secondary hover:text-text-primary hover:bg-active transition-colors',
+    onclick: () => { overlay.remove(); State.showAddMemory = false; },
+  }, [el('span', { class: 'w-3.5 h-3.5', html: Icons.x })]);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  // Body
+  const body = el('div', { class: 'p-5 space-y-4' });
+
+  const catLabel = el('label', { class: 'block text-xs font-medium text-text-secondary mb-1.5' }, ['分类']);
+  const catSelect = el('select', {
+    id: 'memory-cat',
+    class: 'w-full h-9 px-3 text-sm bg-bg-secondary dark:bg-d-bg-tertiary border border-border dark:border-d-border rounded-input focus:outline-none focus:border-accent',
+  });
+  ['general', 'preference', 'project', 'decision'].forEach(c => {
+    const labels = { general: '通用', preference: '偏好', project: '项目', decision: '决策' };
+    catSelect.appendChild(el('option', { value: c }, [labels[c]]));
+  });
+  body.appendChild(el('div', {}, [catLabel, catSelect]));
+
+  const contentLabel = el('label', { class: 'block text-xs font-medium text-text-secondary mb-1.5' }, ['内容']);
+  const contentInput = el('textarea', {
+    id: 'memory-content',
+    rows: 4,
+    placeholder: '记忆内容...',
+    class: 'w-full px-3 py-2 text-sm bg-bg-secondary dark:bg-d-bg-tertiary border border-border dark:border-d-border rounded-input placeholder:text-text-tertiary focus:outline-none focus:border-accent resize-none',
+  });
+  body.appendChild(el('div', {}, [contentLabel, contentInput]));
+  modal.appendChild(body);
+
+  // Footer
+  const footer = el('div', { class: 'px-5 py-3 border-t border-border dark:border-d-border flex items-center justify-end gap-2' });
+  const cancelBtn = el('button', {
+    class: 'h-8 px-3 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-active rounded-btn transition-colors',
+    onclick: () => { overlay.remove(); State.showAddMemory = false; },
+  }, ['取消']);
+  const saveBtn = el('button', {
+    class: 'h-8 px-4 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-btn transition-colors',
+    onclick: async () => {
+      const content = contentInput.value.trim();
+      const category = catSelect.value;
       if (!content) { showToast('内容不能为空', 'error'); return; }
       try {
         await apiPost('/api/memories/add', { content, category });
@@ -617,13 +680,22 @@ function AddMemoryModal() {
       } catch (e) {
         showToast('保存失败: ' + e.message, 'error');
       }
-    });
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) { overlay.remove(); State.showAddMemory = false; }
-    });
-  }, 0);
+    },
+  }, ['保存']);
+  footer.appendChild(cancelBtn);
+  footer.appendChild(saveBtn);
+  modal.appendChild(footer);
 
-  return el('div'); // 占位
+  // 点击外部关闭
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { overlay.remove(); State.showAddMemory = false; }
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // MemoriesView 还会查找 #memory-search（如果是 memories 视图）
+  // 不需要额外返回元素
+  return el('div');
 }
 
 // ==================== Routing View ====================
@@ -701,37 +773,35 @@ function ModelsView() {
   }
 
   const list = el('div', { class: 'max-w-6xl mx-auto px-6 py-8' });
-  list.innerHTML = `
-    <div class="text-sm text-text-secondary mb-4">${State.models.length} 个模型</div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      ${State.models.map(m => `
-        <button class="text-left p-4 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-accent transition-colors group" data-model="${m.name}">
-          <div class="flex items-start justify-between mb-2">
-            <div class="font-medium text-sm text-text-primary dark:text-d-text-primary">${escapeHtml(m.name)}</div>
-            <span class="w-4 h-4 text-text-tertiary group-hover:text-accent transition-colors">${Icons.arrowRight}</span>
-          </div>
-          <div class="text-xs text-text-secondary mb-3 line-clamp-2">${escapeHtml(m.description || '')}</div>
-          <div class="flex flex-wrap gap-1 mb-2">
-            ${(m.aliases || []).slice(0, 3).map(a => `<span class="px-1.5 py-0.5 text-[10px] rounded bg-bg-secondary dark:bg-d-bg-secondary text-text-secondary">${escapeHtml(a)}</span>`).join('')}
-          </div>
-          <div class="text-[10px] text-text-tertiary">
-            兼容: ${(m.compatibility || []).map(c => escapeHtml(c.provider)).join(', ')}
-          </div>
-        </button>
-      `).join('')}
-    </div>
-  `;
 
-  setTimeout(() => {
-    list.querySelectorAll('[data-model]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        State.selectedModel = btn.dataset.model;
-        State.activeView = 'chat';
-        showToast('已选择: ' + btn.dataset.model, 'success');
-        renderApp();
-      });
+  const grid = el('div', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' });
+  State.models.forEach(m => {
+    const card = el('button', {
+      class: 'text-left p-4 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-accent transition-colors group',
     });
-  }, 0);
+    card.appendChild(el('div', { class: 'flex items-start justify-between mb-2' }, [
+      el('div', { class: 'font-medium text-sm text-text-primary dark:text-d-text-primary' }, [m.name]),
+    ]));
+    card.appendChild(el('div', { class: 'text-xs text-text-secondary mb-3 line-clamp-2' }, [m.description || '']));
+    const aliases = el('div', { class: 'flex flex-wrap gap-1 mb-2' });
+    (m.aliases || []).slice(0, 3).forEach(a => {
+      aliases.appendChild(el('span', { class: 'px-1.5 py-0.5 text-[10px] rounded bg-bg-secondary dark:bg-d-bg-secondary text-text-secondary' }, [a]));
+    });
+    card.appendChild(aliases);
+    const compat = (m.compatibility || []).map(c => c.provider).join(', ');
+    card.appendChild(el('div', { class: 'text-[10px] text-text-tertiary' }, ['兼容: ' + compat]));
+    // 绑定事件
+    card.addEventListener('click', () => {
+      State.selectedModel = m.name;
+      State.activeView = 'chat';
+      showToast('已选择: ' + m.name, 'success');
+      renderApp();
+    });
+    grid.appendChild(card);
+  });
+
+  list.appendChild(el('div', { class: 'text-sm text-text-secondary mb-4' }, [State.models.length + ' 个模型']));
+  list.appendChild(grid);
 
   return list;
 }
@@ -788,23 +858,24 @@ function SkillsView() {
     if (!groups[cat] || groups[cat].length === 0) return;
     const meta = catMeta[cat];
     const section = el('div', { class: 'mb-6' });
-    section.innerHTML = `
-      <div class="flex items-center gap-2 mb-3 px-1">
-        <span class="text-base">${meta.icon}</span>
-        <span class="text-sm font-semibold text-text-primary dark:text-d-text-primary">${meta.label}</span>
-        <span class="text-xs text-text-tertiary">${groups[cat].length}</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        ${groups[cat].map(s => `
-          <div class="px-3.5 py-2.5 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-text-tertiary transition-colors">
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="font-medium text-sm text-text-primary dark:text-d-text-primary truncate">${escapeHtml(s.name)}</span>
-            </div>
-            <div class="text-xs text-text-secondary line-clamp-2 leading-relaxed">${escapeHtml(s.description || '')}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+    // 用 el() 直接构建（不用 innerHTML + setTimeout）
+    const headerRow = el('div', { class: 'flex items-center gap-2 mb-3 px-1' });
+    headerRow.appendChild(el('span', { class: 'text-base' }, [meta.icon]));
+    headerRow.appendChild(el('span', { class: 'text-sm font-semibold text-text-primary dark:text-d-text-primary' }, [meta.label]));
+    headerRow.appendChild(el('span', { class: 'text-xs text-text-tertiary' }, [String(groups[cat].length)]));
+    section.appendChild(headerRow);
+    const grid = el('div', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2' });
+    groups[cat].forEach(s => {
+      const card = el('div', {
+        class: 'px-3.5 py-2.5 bg-white dark:bg-d-bg-primary border border-border dark:border-d-border rounded-card hover:border-text-tertiary transition-colors',
+      });
+      card.appendChild(el('div', { class: 'flex items-center gap-1.5 mb-1' }, [
+        el('span', { class: 'font-medium text-sm text-text-primary dark:text-d-text-primary truncate' }, [s.name]),
+      ]));
+      card.appendChild(el('div', { class: 'text-xs text-text-secondary line-clamp-2 leading-relaxed' }, [s.description || '']));
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
     wrap.appendChild(section);
   });
 
@@ -923,6 +994,9 @@ async function init() {
 
   await loadAll();
   renderApp();
+
+  // 暴露调试接口
+  window.magent = { State, renderApp, loadAll, apiGet, apiPost, rerenderMain, Header, ModelSelector };
 
   // 定时刷新
   setInterval(async () => {
