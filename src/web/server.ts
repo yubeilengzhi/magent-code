@@ -13,7 +13,8 @@ import { getRoutingHistoryStore } from '../memory/routing-history.js';
 import { ModelPool } from '../core/model-pool.js';
 
 const app = express();
-const PORT = process.env.MAGENT_PORT || 3000;
+const PORT = parseInt(process.env.MAGENT_PORT || '20011');
+const HOST = process.env.MAGENT_HOST || '0.0.0.0';
 
 // 中间件
 app.use(cors());
@@ -145,8 +146,9 @@ app.get('/api/health', (req, res) => {
 
 // 启动服务器
 export function startServer() {
-  app.listen(PORT, () => {
-    console.log(`[magent] Web UI server running at http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`[magent] Web UI server running at http://${HOST}:${PORT}`);
+    console.log(`[magent] LAN access: http://<your-ip>:${PORT}`);
   });
 }
 

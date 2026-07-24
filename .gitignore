@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.tgz
 *.log
+public/vendor/
+dist/public/vendor/

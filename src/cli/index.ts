@@ -361,10 +361,12 @@ program
 // === Web UI 服务器 ===
 program
   .command('serve')
-  .description('启动 Web UI 服务器')
-  .option('-p, --port <port>', '服务器端口', '3000')
+  .description('启动 Web UI 服务器（默认 0.0.0.0:20011）')
+  .option('-p, --port <port>', '服务器端口', '20011')
+  .option('-h, --host <host>', '绑定地址', '0.0.0.0')
   .action(async (options) => {
     process.env.MAGENT_PORT = options.port;
+    process.env.MAGENT_HOST = options.host;
     const { startServer } = await import('../web/server.js');
     startServer();
   });
