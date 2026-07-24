@@ -7,10 +7,10 @@ window.MAGENT_SKILLS = [
     "origin": "ecc",
     "triggers": [
       "agent fail",
-      " agent broken",
-      " self debug",
-      " agent 调试",
-      " 自省"
+      "agent broken",
+      "self debug",
+      "agent 调试",
+      "自省"
     ]
   },
   {
@@ -20,12 +20,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "API design",
-      " design API",
-      " endpoint",
-      " REST",
-      " interface design",
-      " API 设计",
-      " 接口设计"
+      "design API",
+      "endpoint",
+      "REST",
+      "interface design"
     ]
   },
   {
@@ -35,12 +33,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "triage",
-      " prioritize",
-      " backlog",
-      " sort issues",
-      " 优先级",
-      " 排序",
-      " 待办事项"
+      "prioritize",
+      "backlog",
+      "sort issues",
+      "优先级"
     ]
   },
   {
@@ -50,16 +46,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "brainstorm",
-      " brainstorm设计",
-      " 设计",
-      " 想法",
-      " 方案",
-      " 创意",
-      " 头脑风暴",
-      " 多方案",
-      " compare options",
-      " explore",
-      " propose approach"
+      "brainstorm设计",
+      "设计",
+      "想法",
+      "方案"
     ]
   },
   {
@@ -69,12 +59,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "branch",
-      " PR",
-      " pull request",
-      " create branch",
-      " 分支",
-      " 拉取请求",
-      " 开 PR"
+      "PR",
+      "pull request",
+      "create branch",
+      "分支"
     ]
   },
   {
@@ -84,8 +72,8 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers-zh",
     "triggers": [
       "中文 review",
-      " 中国团队审查",
-      " 中文代码审查"
+      "中国团队审查",
+      "中文代码审查"
     ]
   },
   {
@@ -95,9 +83,9 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers-zh",
     "triggers": [
       "中文 commit",
-      " Chinese commit",
-      " 中文提交规范",
-      " emoji commit"
+      "Chinese commit",
+      "中文提交规范",
+      "emoji commit"
     ]
   },
   {
@@ -107,9 +95,9 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers-zh",
     "triggers": [
       "中文文档",
-      " Chinese docs",
-      " 中文排版",
-      " 中文文案"
+      "Chinese docs",
+      "中文排版",
+      "中文文案"
     ]
   },
   {
@@ -119,9 +107,9 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers-zh",
     "triggers": [
       "中文 git",
-      " 中国团队 git",
-      " 国内 git 规范",
-      " 中文工作流"
+      "中国团队 git",
+      "国内 git 规范",
+      "中文工作流"
     ]
   },
   {
@@ -131,20 +119,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers-zh",
     "triggers": [
       "review",
-      " check code",
-      " audit",
-      " look at",
-      " 审查",
-      " 检查代码",
-      " code review",
-      " PR review",
-      " audit",
-      " inspect",
-      " examine",
-      " 看看代码",
-      " 看一下",
-      " 审一下",
-      " 帮我看看"
+      "check code",
+      "audit",
+      "look at",
+      "审查"
     ]
   },
   {
@@ -154,11 +132,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "simplify",
-      " clean up",
-      " complexity",
-      " 简化",
-      " 清理",
-      " 复杂度"
+      "clean up",
+      "complexity",
+      "简化",
+      "清理"
     ]
   },
   {
@@ -168,10 +145,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "commit",
-      " git commit",
-      " commit message",
-      " commit 规范",
-      " 提交"
+      "git commit",
+      "commit message",
+      "commit 规范",
+      "提交"
     ]
   },
   {
@@ -181,11 +158,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "error recovery",
-      " handle error",
-      " recover",
-      " 错误恢复",
-      " 异常处理",
-      " 容错"
+      "handle error",
+      "recover",
+      "错误恢复",
+      "异常处理"
     ]
   },
   {
@@ -195,11 +171,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "parallel",
-      " multiple agents",
-      " concurrent",
-      " 并行",
-      " 同时",
-      " 多个任务"
+      "multiple agents",
+      "concurrent",
+      "并行",
+      "同时"
     ]
   },
   {
@@ -209,10 +184,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "ADR",
-      " decision record",
-      " architecture decision",
-      " 决策记录",
-      " 文档化决策"
+      "decision record",
+      "architecture decision",
+      "决策记录",
+      "文档化决策"
     ]
   },
   {
@@ -222,11 +197,10 @@ window.MAGENT_SKILLS = [
     "origin": "ecc",
     "triggers": [
       "error handling",
-      " exception",
-      " fail",
-      " 错误处理",
-      " 异常",
-      " 容错"
+      "exception",
+      "fail",
+      "错误处理",
+      "异常"
     ]
   },
   {
@@ -236,12 +210,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "estimate",
-      " how long",
-      " complexity",
-      " effort",
-      " 估算",
-      " 复杂度",
-      " 需要多久"
+      "how long",
+      "complexity",
+      "effort",
+      "估算"
     ]
   },
   {
@@ -251,10 +223,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "execute",
-      " run plan",
-      " follow plan",
-      " 执行计划",
-      " 跑计划"
+      "run plan",
+      "follow plan",
+      "执行计划",
+      "跑计划"
     ]
   },
   {
@@ -264,11 +236,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "finish branch",
-      " complete branch",
-      " merge branch",
-      " 结束分支",
-      " 完成分支",
-      " 合并"
+      "complete branch",
+      "merge branch",
+      "结束分支",
+      "完成分支"
     ]
   },
   {
@@ -278,13 +249,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "incremental",
-      " small steps",
-      " MVP",
-      " iterate",
-      " 小步快跑",
-      " 增量",
-      " 最小可行",
-      " 逐步实现"
+      "small steps",
+      "MVP",
+      "iterate",
+      "小步快跑"
     ]
   },
   {
@@ -294,11 +262,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "issue",
-      " bug report",
-      " file issue",
-      " GitHub issue",
-      " 问题报告",
-      " 提 issue"
+      "bug report",
+      "file issue",
+      "GitHub issue",
+      "问题报告"
     ]
   },
   {
@@ -308,11 +275,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "task breakdown",
-      " decompose",
-      " split task",
-      " 任务分解",
-      " 拆分任务",
-      " plan project"
+      "decompose",
+      "split task",
+      "任务分解",
+      "拆分任务"
     ]
   },
   {
@@ -322,11 +288,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "property-based",
-      " fuzz",
-      " fast-check",
-      " hypothesis",
-      " 属性测试",
-      " 模糊测试"
+      "fuzz",
+      "fast-check",
+      "hypothesis",
+      "属性测试"
     ]
   },
   {
@@ -336,18 +301,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "review feedback",
-      " comment",
-      " suggestion",
-      " criticism",
-      " 反馈",
-      " 评论",
-      " 建议",
-      " 接受审查",
-      " feedback",
-      " response",
-      " reply",
-      " 收到评论",
-      " 怎么回复"
+      "comment",
+      "suggestion",
+      "criticism",
+      "反馈"
     ]
   },
   {
@@ -357,11 +314,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "refactor",
-      " restructure",
-      " clean code",
-      " 重构",
-      " 整理代码",
-      " 代码优化"
+      "restructure",
+      "clean code",
+      "重构",
+      "整理代码"
     ]
   },
   {
@@ -371,11 +327,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "regression",
-      " broken",
-      " used to work",
-      " 回归",
-      " 之前能跑",
-      " 不工作了"
+      "broken",
+      "used to work",
+      "回归",
+      "之前能跑"
     ]
   },
   {
@@ -385,10 +340,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "request review",
-      " ask review",
-      " need feedback",
-      " 请审查",
-      " 需要反馈"
+      "ask review",
+      "need feedback",
+      "请审查",
+      "需要反馈"
     ]
   },
   {
@@ -398,11 +353,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "requirements",
-      " analyze",
-      " what's needed",
-      " 需求分析",
-      " 分析需求",
-      " 需求"
+      "analyze",
+      "what's needed",
+      "需求分析",
+      "分析需求"
     ]
   },
   {
@@ -412,11 +366,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "root cause",
-      " 5 whys",
-      " why why why",
-      " 根本原因",
-      " 深入分析",
-      " 真因"
+      "5 whys",
+      "why why why",
+      "根本原因",
+      "深入分析"
     ]
   },
   {
@@ -426,10 +379,10 @@ window.MAGENT_SKILLS = [
     "origin": "ecc",
     "triggers": [
       "santa",
-      " adversarial",
-      " multi-agent verify",
-      " 多 agent 验证",
-      " 对抗"
+      "adversarial",
+      "multi-agent verify",
+      "多 agent 验证",
+      "对抗"
     ]
   },
   {
@@ -439,13 +392,10 @@ window.MAGENT_SKILLS = [
     "origin": "ecc",
     "triggers": [
       "security",
-      " vulnerability",
-      " CVE",
-      " exploit",
-      " hack",
-      " 安全",
-      " 漏洞",
-      " 渗透测试"
+      "vulnerability",
+      "CVE",
+      "exploit",
+      "hack"
     ]
   },
   {
@@ -455,12 +405,10 @@ window.MAGENT_SKILLS = [
     "origin": "agent-skills",
     "triggers": [
       "spec",
-      " specification",
-      " 规格",
-      " 规范",
-      " SDD",
-      " write spec",
-      " requirements doc"
+      "specification",
+      "规格",
+      "规范",
+      "SDD"
     ]
   },
   {
@@ -470,10 +418,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "subagent",
-      " delegate",
-      " sub-task",
-      " 分发任务",
-      " 子 agent"
+      "delegate",
+      "sub-task",
+      "分发任务",
+      "子 agent"
     ]
   },
   {
@@ -483,23 +431,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "debug",
-      " fix",
-      " broken",
-      " error",
-      " bug",
-      " not working",
-      " 调试",
-      " 修复",
-      " 出错",
-      " 报错",
-      " crash",
-      " exception",
-      " 不工作",
-      " 失败",
-      " root cause",
-      " 哪里出问题了",
-      " 找原因",
-      " 排查"
+      "fix",
+      "broken",
+      "error",
+      "bug"
     ]
   },
   {
@@ -509,10 +444,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "test design",
-      " design tests",
-      " what to test",
-      " 测试设计",
-      " 设计测试"
+      "design tests",
+      "what to test",
+      "测试设计",
+      "设计测试"
     ]
   },
   {
@@ -522,18 +457,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "test",
-      " TDD",
-      " write test first",
-      " unit test",
-      " integration test",
-      " 测试",
-      " 写测试",
-      " 单元测试",
-      " TDD测试",
-      " red green refactor",
-      " testing first",
-      " 测一下",
-      " 加测试"
+      "TDD",
+      "write test first",
+      "unit test",
+      "integration test"
     ]
   },
   {
@@ -543,13 +470,10 @@ window.MAGENT_SKILLS = [
     "origin": "magent",
     "triggers": [
       "trade-off",
-      " compare",
-      " choose",
-      " pros cons",
-      " 权衡",
-      " 选择",
-      " 比较",
-      " 利弊"
+      "compare",
+      "choose",
+      "pros cons",
+      "权衡"
     ]
   },
   {
@@ -559,18 +483,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "worktree",
-      " parallel",
-      " isolate",
-      " branch",
-      " switch",
-      " worktree",
-      " 分支",
-      " 并行",
-      " 隔离",
-      " git worktree",
-      " multiple branches",
-      " 多分支",
-      " 平行开发"
+      "parallel",
+      "isolate",
+      "branch",
+      "switch"
     ]
   },
   {
@@ -580,12 +496,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "start",
-      " how to use",
-      " skills",
-      " 开始",
-      " 怎么用",
-      " 如何用",
-      " 用 skill"
+      "how to use",
+      "skills",
+      "开始",
+      "怎么用"
     ]
   },
   {
@@ -595,22 +509,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "verify",
-      " check",
-      " done",
-      " complete",
-      " finished",
-      " 验证",
-      " 完成",
-      " 检查",
-      " confirm",
-      " prove",
-      " demonstrate",
-      " evidence",
-      " 真的能跑吗",
-      " 测试过了吗",
-      " 跑通了",
-      " 验证一下",
-      " 完工"
+      "check",
+      "done",
+      "complete",
+      "finished"
     ]
   },
   {
@@ -620,19 +522,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "plan",
-      " implement",
-      " build",
-      " write plan",
-      " planning",
-      " 计划",
-      " 实施",
-      " 方案",
-      " 步骤",
-      " implementation plan",
-      " step by step",
-      " roadmap",
-      " 写计划",
-      " 实施计划"
+      "implement",
+      "build",
+      "write plan",
+      "planning"
     ]
   },
   {
@@ -642,10 +535,10 @@ window.MAGENT_SKILLS = [
     "origin": "superpowers",
     "triggers": [
       "write skill",
-      " new skill",
-      " SKILL.md",
-      " 写 skill",
-      " 创建 skill"
+      "new skill",
+      "SKILL.md",
+      "写 skill",
+      "创建 skill"
     ]
   }
 ];
